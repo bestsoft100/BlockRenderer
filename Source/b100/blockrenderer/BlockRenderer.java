@@ -1,13 +1,9 @@
 package b100.blockrenderer;
 import static org.lwjgl.opengl.GL11.*;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-
-import javax.imageio.ImageIO;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -17,7 +13,6 @@ import org.lwjgl.util.glu.GLU;
 
 public class BlockRenderer {
 	
-	public ByteBuffer buffer = ByteBuffer.allocateDirect(0x8000000).order(ByteOrder.nativeOrder());
 	public FloatBuffer floatBuffer = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder()).asFloatBuffer();
 	
 	public CubeRenderer blockRenderer = new CubeRenderer();
@@ -32,12 +27,11 @@ public class BlockRenderer {
 	public boolean lightBackground = true;
 	public boolean cullFace = true;
 	public boolean zoom = false;
+	public RenderType renderType = RenderType.BLOCK;
 	
 	public BlockRenderer() {
 		try {
-			System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
-			
-			Display.setDisplayMode(new DisplayMode(48, 48));
+			Display.setDisplayMode(new DisplayMode(1024, 1024));
 			Display.setResizable(false);
 			Display.create();
 			Display.setTitle("Block Renderer");
@@ -47,14 +41,8 @@ public class BlockRenderer {
 			int tex = glGenTextures();
 			glBindTexture(GL_TEXTURE_2D, tex);
 			
-			BufferedImage image = ImageIO.read(new File("terrain.png"));
-			putImageInBuffer(image);
-			
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.getWidth(), image.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+			TextureAtlas textureAtlas = new TextureAtlas(16, 16, 16);
+			Utils.setupTexture(textureAtlas.image);
 			
 			long lastTick = System.currentTimeMillis();
 			
@@ -176,60 +164,64 @@ public class BlockRenderer {
 				
 //				glRotated(30.0, 1, 0, 0);
 //				glRotated(-45.0, 0, 1, 0);
-				glRotated(elapsedTime * 60, 0, 1, 0);
+//				glRotated(elapsedTime * 60, 0, 1, 0);
 
 				glRotated(rotationX * 0.1, 0, 1, 0);
 				
 				glTranslated(-0.5, -0.5, -0.5);
 
 				if(light) {
-					glEnable(GL_LIGHTING);
-					glEnable(GL_LIGHT0);
-					glEnable(GL_LIGHT1);
-					glEnable(GL_COLOR_MATERIAL);
-					glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-//					glEnable(EXTRescaleNormal.GL_RESCALE_NORMAL_EXT);
+					setupLighting();
 					
-					glLight(GL_LIGHT0, GL_POSITION, putFloats(0.0, 2.0, -1.0, 0.0));
-					glLight(GL_LIGHT0, GL_DIFFUSE, putFloats(1.0, 1.0, 1.0, 1.0));
-					glLight(GL_LIGHT0, GL_AMBIENT, putFloats(0.1, 0.1, 0.1, 1.0));
-					glLight(GL_LIGHT0, GL_SPECULAR, putFloats(0.0, 0.0, 0.0, 1.0));
-					
-					glLight(GL_LIGHT1, GL_POSITION, putFloats(0.0, 2.0, 1.0, 0.0));
-					glLight(GL_LIGHT1, GL_DIFFUSE, putFloats(1.0, 1.0, 1.0, 1.0));
-					glLight(GL_LIGHT1, GL_AMBIENT, putFloats(0.1, 0.1, 0.1, 1.0));
-					glLight(GL_LIGHT1, GL_SPECULAR, putFloats(0.0, 0.0, 0.0, 1.0));
-					
-					glShadeModel(GL_FLAT);
 				}else {
 					glDisable(GL_LIGHTING);
 				}
 				
 				glBegin(GL_TRIANGLES);
 				
-				blockRenderer.renderSide(Side.TOP, iconIndex(0, 10), 0, 0, 0, 1, 1, 1, !light);
-				blockRenderer.renderSide(Side.NORTH, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
-				blockRenderer.renderSide(Side.EAST, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
-				blockRenderer.renderSide(Side.SOUTH, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
-				blockRenderer.renderSide(Side.WEST, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
-				blockRenderer.renderSide(Side.BOTTOM, iconIndex(2, 10), 0, 0, 0, 1, 1, 1, !light);
+				if(renderType == RenderType.BLOCK) {
+					blockRenderer.renderSide(Side.TOP, iconIndex(0, 10), 0, 0, 0, 1, 1, 1, !light);
+					blockRenderer.renderSide(Side.NORTH, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
+					blockRenderer.renderSide(Side.EAST, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
+					blockRenderer.renderSide(Side.SOUTH, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
+					blockRenderer.renderSide(Side.WEST, iconIndex(1, 10), 0, 0, 0, 1, 1, 1, !light);
+					blockRenderer.renderSide(Side.BOTTOM, iconIndex(2, 10), 0, 0, 0, 1, 1, 1, !light);
+				}
 				
-//				blockRenderer.renderSide(Side.TOP, iconIndex(0, 0), 0, 0, 0, 1, 1, 1, !light);
-//				blockRenderer.renderSide(Side.NORTH, iconIndex(3, 0), 0, 0, 0, 1, 1, 1, !light);
-//				blockRenderer.renderSide(Side.EAST, iconIndex(3, 0), 0, 0, 0, 1, 1, 1, !light);
-//				blockRenderer.renderSide(Side.SOUTH, iconIndex(3, 0), 0, 0, 0, 1, 1, 1, !light);
-//				blockRenderer.renderSide(Side.WEST, iconIndex(3, 0), 0, 0, 0, 1, 1, 1, !light);
-//				blockRenderer.renderSide(Side.BOTTOM, iconIndex(2, 0), 0, 0, 0, 1, 1, 1, !light);
-				
-//				itemRenderer.renderItem(67);
+				if(renderType == RenderType.ITEM) {
+//					itemRenderer.renderItem(67);
+				}
 				
 				glEnd();
 				
 				glPopMatrix();
 			}
+			
+			System.out.println("Stop");
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void setupLighting() {
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+		glEnable(GL_LIGHT1);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//		glEnable(EXTRescaleNormal.GL_RESCALE_NORMAL_EXT);
+		
+		glLight(GL_LIGHT0, GL_POSITION, putFloats(0.0, 2.0, -1.0, 0.0));
+		glLight(GL_LIGHT0, GL_DIFFUSE, putFloats(1.0, 1.0, 1.0, 1.0));
+		glLight(GL_LIGHT0, GL_AMBIENT, putFloats(0.1, 0.1, 0.1, 1.0));
+		glLight(GL_LIGHT0, GL_SPECULAR, putFloats(0.0, 0.0, 0.0, 1.0));
+		
+		glLight(GL_LIGHT1, GL_POSITION, putFloats(0.0, 2.0, 1.0, 0.0));
+		glLight(GL_LIGHT1, GL_DIFFUSE, putFloats(1.0, 1.0, 1.0, 1.0));
+		glLight(GL_LIGHT1, GL_AMBIENT, putFloats(0.1, 0.1, 0.1, 1.0));
+		glLight(GL_LIGHT1, GL_SPECULAR, putFloats(0.0, 0.0, 0.0, 1.0));
+		
+		glShadeModel(GL_SMOOTH);
 	}
 	
 	public static int iconIndex(int x, int y) {
@@ -250,40 +242,6 @@ public class BlockRenderer {
 		floatBuffer.limit(floatBuffer.position());
 		floatBuffer.flip();
 		return floatBuffer;
-	}
-	
-	public void resetBuffer() {
-		buffer.limit(buffer.capacity());
-		buffer.position(0);
-	}
-	
-	public void putImageInBuffer(BufferedImage image) {
-		resetBuffer();
-		
-		int[] rgb = new int[image.getWidth() * image.getHeight()];
-		image.getRGB(0, 0, image.getWidth(), image.getHeight(), rgb, 0, image.getWidth());
-		
-		for(int i=0; i < rgb.length; i++) {
-			int c = rgb[i];
-			
-			byte r = (byte) ((c >> 16) & 0xff);
-			byte g = (byte) ((c >> 8) & 0xff);
-			byte b = (byte) ((c >> 0) & 0xff);
-			byte a = (byte) ((c >> 24) & 0xff);
-			
-			buffer.put(r);
-			buffer.put(g);
-			buffer.put(b);
-			buffer.put(a);
-		}
-		
-		buffer.limit(buffer.position());
-		buffer.flip();
-	}
-
-
-	public static void main(String[] args) {
-		new BlockRenderer();
 	}
 	
 }
